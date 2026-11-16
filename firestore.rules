@@ -1,0 +1,419 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email_verified == true && request.auth.token.email == 'mrzorvixofficial@gmail.com')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUsername(u) {
+      return u is string && u.size() >= 3 && u.size() <= 30 && u.matches('^[a-z0-9_]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidStringList(val, maxItems) {
+      return val is list && val.size() <= maxItems && (val.size() == 0 || val[0] is string);
+    }
+
+    function isValidUserProfile(data, uid) {
+      return data.keys().hasAll([
+          'uid', 'username', 'displayName', 'avatarUrl', 'bannerUrl',
+          'frameId', 'themeId', 'bio', 'favoriteGenres', 'badges',
+          'watchlistVisibility', 'setupCompleted', 'joinDate', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'username', 'displayName', 'avatarUrl', 'bannerUrl',
+          'frameId', 'themeId', 'bio', 'favoriteGenres', 'badges',
+          'watchlistVisibility', 'setupCompleted', 'joinDate', 'updatedAt'
+        ])
+        && data.uid == uid
+        && isValidUsername(data.username)
+        && isValidString(data.displayName, 1, 60)
+        && isValidString(data.avatarUrl, 0, 500)
+        && isValidString(data.bannerUrl, 0, 500)
+        && isValidId(data.frameId)
+        && data.themeId in ['classic-orange', 'midnight-black', 'crimson-edge', 'golden-legend', 'anime-collector', 'seasonal-frame']
+        && isValidString(data.bio, 0, 400)
+        && isValidStringList(data.favoriteGenres, 12)
+        && isValidStringList(data.badges, 10)
+        && data.watchlistVisibility in ['public', 'private']
+        && data.setupCompleted is bool
+        && data.joinDate is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, uid) {
+      return data.keys().hasAll(['uid', 'email', 'preferredLanguage', 'preferredSubtitleLang', 'skipIntroEnabled', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'preferredLanguage', 'preferredSubtitleLang', 'skipIntroEnabled', 'updatedAt'])
+        && data.uid == uid
+        && isValidString(data.email, 3, 254)
+        && isValidString(data.preferredLanguage, 1, 16)
+        && isValidString(data.preferredSubtitleLang, 0, 16)
+        && data.skipIntroEnabled is bool
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUsernameReservation(data, username) {
+      return data.keys().hasAll(['uid', 'username', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'username', 'createdAt'])
+        && data.uid == request.auth.uid
+        && data.username == username
+        && isValidUsername(data.username)
+        && data.createdAt is timestamp
+        && data.createdAt == request.time;
+    }
+
+    function isValidAnime(data, id) {
+      return data.keys().hasAll([
+          'id', 'titleRomaji', 'status', 'featured', 'hasAuthorizedPlayback',
+          'sourceProvider', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'anilistId', 'malId', 'titleEnglish', 'titleRomaji', 'titleNative',
+          'synopsis', 'posterUrl', 'bannerUrl', 'genres', 'season', 'seasonYear',
+          'format', 'episodeCount', 'averageScore', 'popularity', 'trendingRank',
+          'languages', 'status', 'featured', 'hasAuthorizedPlayback', 'sourceProvider',
+          'adminLockedFields', 'createdAt', 'updatedAt'
+        ])
+        && data.id == id
+        && isValidString(data.titleRomaji, 1, 240)
+        && (!('titleEnglish' in data) || isValidString(data.titleEnglish, 0, 240))
+        && (!('titleNative' in data) || isValidString(data.titleNative, 0, 240))
+        && (!('synopsis' in data) || isValidString(data.synopsis, 0, 4000))
+        && (!('posterUrl' in data) || isValidString(data.posterUrl, 0, 600))
+        && (!('bannerUrl' in data) || isValidString(data.bannerUrl, 0, 600))
+        && (!('genres' in data) || isValidStringList(data.genres, 20))
+        && (!('languages' in data) || isValidStringList(data.languages, 20))
+        && (!('adminLockedFields' in data) || isValidStringList(data.adminLockedFields, 30))
+        && data.status in ['draft', 'published', 'archived']
+        && data.featured is bool
+        && data.hasAuthorizedPlayback is bool
+        && isValidString(data.sourceProvider, 1, 64)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEpisode(data, animeId, episodeId) {
+      return data.keys().hasAll(['id', 'animeId', 'seasonNumber', 'episodeNumber', 'title', 'status', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'animeId', 'seasonNumber', 'episodeNumber', 'title', 'description',
+          'durationSeconds', 'thumbnailUrl', 'status', 'playbackSources', 'subtitles', 'updatedAt'
+        ])
+        && data.id == episodeId
+        && data.animeId == animeId
+        && data.seasonNumber is number
+        && data.episodeNumber is number
+        && isValidString(data.title, 1, 240)
+        && (!('description' in data) || isValidString(data.description, 0, 2000))
+        && (!('thumbnailUrl' in data) || isValidString(data.thumbnailUrl, 0, 600))
+        && data.status in ['draft', 'published', 'archived']
+        && (!('playbackSources' in data) || (data.playbackSources is list && data.playbackSources.size() <= 16))
+        && (!('subtitles' in data) || (data.subtitles is list && data.subtitles.size() <= 24))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWatchlistEntry(data) {
+      return data.keys().hasAll(['userId', 'mediaId', 'category', 'title', 'watchStatus', 'isPublic', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'mediaId', 'category', 'title', 'posterUrl', 'watchStatus', 'isPublic', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && isValidId(data.mediaId)
+        && data.category in ['anime', 'anime_movie', 'movie', 'series', 'manga', 'novel', 'comic']
+        && isValidString(data.title, 1, 240)
+        && (!('posterUrl' in data) || isValidString(data.posterUrl, 0, 600))
+        && data.watchStatus in ['watching', 'planned', 'completed', 'on_hold', 'dropped']
+        && data.isPublic is bool
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function isValidWatchProgress(data) {
+      return data.keys().hasAll(['userId', 'animeId', 'episodeNumber', 'positionSeconds', 'durationSeconds', 'completed', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'animeId', 'animeTitle', 'posterUrl', 'episodeNumber', 'positionSeconds', 'durationSeconds', 'completed', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && isValidId(data.animeId)
+        && (!('animeTitle' in data) || isValidString(data.animeTitle, 0, 240))
+        && (!('posterUrl' in data) || isValidString(data.posterUrl, 0, 600))
+        && data.episodeNumber is number && data.episodeNumber >= 0
+        && data.positionSeconds is number && data.positionSeconds >= 0
+        && data.durationSeconds is number && data.durationSeconds >= 0
+        && data.completed is bool
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function isValidDiscordUrl(url) {
+      return url == '' || (
+        url is string && url.size() <= 300 && (
+          url.matches('^https://discord\\.gg/[a-zA-Z0-9_\\-]+$') ||
+          url.matches('^https://discord\\.com/invite/[a-zA-Z0-9_\\-]+$') ||
+          url.matches('^https://discordapp\\.com/invite/[a-zA-Z0-9_\\-]+$')
+        )
+      );
+    }
+
+    function isValidCommunitySettings(data, settingId) {
+      return data.keys().hasAll(['id', 'serverName', 'enabled', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'serverName', 'description', 'inviteUrl', 'iconUrl',
+          'supportInviteUrl', 'announcementsInviteUrl', 'showInHeader',
+          'showHomeCard', 'showFooter', 'showFloatingButton', 'enabled', 'updatedAt'
+        ])
+        && data.id == settingId
+        && isValidString(data.serverName, 1, 100)
+        && (!('description' in data) || isValidString(data.description, 0, 400))
+        && (!('inviteUrl' in data) || isValidDiscordUrl(data.inviteUrl))
+        && (!('supportInviteUrl' in data) || isValidDiscordUrl(data.supportInviteUrl))
+        && (!('announcementsInviteUrl' in data) || isValidDiscordUrl(data.announcementsInviteUrl))
+        && (!('iconUrl' in data) || isValidString(data.iconUrl, 0, 500))
+        && data.enabled is bool
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    // Users public-safe profile
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (existing().watchlistVisibility == 'public' || isOwner(userId) || isAdmin());
+      allow list: if resource.data.watchlistVisibility == 'public' || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isValidId(userId) && isOwner(userId) && isValidUserProfile(incoming(), userId)
+        && incoming().badges.size() == 0
+        && incoming().joinDate == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isValidUserProfile(incoming(), userId) && (
+        isAdmin() || (
+          isOwner(userId) && isVerifiedUser()
+          && incoming().uid == existing().uid
+          && incoming().joinDate == existing().joinDate
+          && incoming().badges == existing().badges
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'username', 'displayName', 'avatarUrl', 'bannerUrl', 'frameId',
+            'themeId', 'bio', 'favoriteGenres', 'watchlistVisibility', 'setupCompleted', 'updatedAt'
+          ])
+        )
+      );
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+
+      // Isolated private PII subcollection
+      match /private/info {
+        allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+        allow list: if false;
+        allow create: if isValidId(userId) && isOwner(userId) && isValidUserPrivateInfo(incoming(), userId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidUserPrivateInfo(incoming(), userId) && (
+          isAdmin() || (
+            isOwner(userId)
+            && incoming().uid == existing().uid
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'email', 'preferredLanguage', 'preferredSubtitleLang', 'skipIntroEnabled', 'updatedAt'
+            ])
+          )
+        );
+        allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      }
+    }
+
+    // Atomic username lock
+    match /usernames/{username} {
+      allow get: if isValidUsername(username);
+      allow list: if false;
+      allow create: if isVerifiedUser() && isValidUsername(username)
+        && isValidUsernameReservation(incoming(), username)
+        && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update: if false;
+      allow delete: if isSignedIn() && existing().uid == request.auth.uid;
+    }
+
+    // Admin roster (server-managed only)
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow list: if false;
+      allow write: if false;
+    }
+
+    // Anime catalogue
+    match /anime/{animeId} {
+      allow get: if isValidId(animeId) && (existing().status == 'published' || isAdmin());
+      allow list: if resource.data.status == 'published' || (isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'mrzorvixofficial@gmail.com');
+      allow create: if isValidId(animeId) && isAdmin() && isValidAnime(incoming(), animeId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(animeId) && isAdmin() && isValidAnime(incoming(), animeId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'anilistId', 'malId', 'titleEnglish', 'titleRomaji', 'titleNative',
+          'synopsis', 'posterUrl', 'bannerUrl', 'genres', 'season', 'seasonYear',
+          'format', 'episodeCount', 'averageScore', 'popularity', 'trendingRank',
+          'languages', 'status', 'featured', 'hasAuthorizedPlayback', 'sourceProvider',
+          'adminLockedFields', 'updatedAt'
+        ]);
+      allow delete: if isValidId(animeId) && isAdmin();
+
+      match /episodes/{episodeId} {
+        allow get: if isValidId(animeId) && isValidId(episodeId) && (
+          (existing().status == 'published' && get(/databases/$(database)/documents/anime/$(animeId)).data.status == 'published')
+          || isAdmin()
+        );
+        allow list: if resource.data.status == 'published' || (isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'mrzorvixofficial@gmail.com');
+        allow create: if isValidId(animeId) && isValidId(episodeId) && isAdmin()
+          && exists(/databases/$(database)/documents/anime/$(animeId))
+          && isValidEpisode(incoming(), animeId, episodeId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(animeId) && isValidId(episodeId) && isAdmin()
+          && exists(/databases/$(database)/documents/anime/$(animeId))
+          && isValidEpisode(incoming(), animeId, episodeId)
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'seasonNumber', 'episodeNumber', 'title', 'description',
+            'durationSeconds', 'thumbnailUrl', 'status', 'playbackSources', 'subtitles', 'updatedAt'
+          ]);
+        allow delete: if isValidId(animeId) && isValidId(episodeId) && isAdmin();
+      }
+    }
+
+    // Dedicated Anime Movies catalogue
+    match /animeMovies/{movieId} {
+      allow get: if isValidId(movieId) && (existing().status == 'published' || isAdmin());
+      allow list: if resource.data.status == 'published' || (isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'mrzorvixofficial@gmail.com');
+      allow create: if isValidId(movieId) && isAdmin() && isValidAnime(incoming(), movieId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(movieId) && isAdmin() && isValidAnime(incoming(), movieId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'anilistId', 'malId', 'titleEnglish', 'titleRomaji', 'titleNative',
+          'synopsis', 'posterUrl', 'bannerUrl', 'genres', 'season', 'seasonYear',
+          'format', 'episodeCount', 'averageScore', 'popularity', 'trendingRank',
+          'languages', 'status', 'featured', 'hasAuthorizedPlayback', 'sourceProvider',
+          'adminLockedFields', 'updatedAt'
+        ]);
+      allow delete: if isValidId(movieId) && isAdmin();
+    }
+
+    // User Watchlists
+    match /userWatchlists/{entryId} {
+      allow get: if isValidId(entryId) && (
+        (isSignedIn() && existing().userId == request.auth.uid) || existing().isPublic == true || isAdmin()
+      );
+      allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || resource.data.isPublic == true;
+      allow create: if isValidId(entryId) && isSignedIn() && isVerifiedUser() && isValidWatchlistEntry(incoming());
+      allow update: if isValidId(entryId) && isSignedIn() && isValidWatchlistEntry(incoming()) && (
+        isAdmin() || (
+          isVerifiedUser()
+          && existing().userId == request.auth.uid
+          && incoming().userId == existing().userId
+          && incoming().mediaId == existing().mediaId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['watchStatus', 'isPublic', 'title', 'posterUrl', 'updatedAt'])
+        )
+      );
+      allow delete: if isValidId(entryId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Watch Progress
+    match /watchProgress/{progressId} {
+      allow get: if isValidId(progressId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isValidId(progressId) && isSignedIn() && isVerifiedUser() && isValidWatchProgress(incoming());
+      allow update: if isValidId(progressId) && isSignedIn() && isValidWatchProgress(incoming()) && (
+        isAdmin() || (
+          isVerifiedUser()
+          && existing().userId == request.auth.uid
+          && incoming().userId == existing().userId
+          && incoming().animeId == existing().animeId
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'episodeNumber', 'positionSeconds', 'durationSeconds', 'completed', 'animeTitle', 'posterUrl', 'updatedAt'
+          ])
+        )
+      );
+      allow delete: if isValidId(progressId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Profile Frames & Banners
+    match /profileFrames/{frameId} {
+      allow get: if isValidId(frameId) && (existing().enabled == true || isAdmin());
+      allow list: if resource.data.enabled == true;
+      allow create, update, delete: if isValidId(frameId) && isAdmin();
+    }
+
+    match /profileBanners/{bannerId} {
+      allow get: if isValidId(bannerId) && (existing().enabled == true || isAdmin());
+      allow list: if resource.data.enabled == true;
+      allow create, update, delete: if isValidId(bannerId) && isAdmin();
+    }
+
+    // Discord Community Settings
+    match /communitySettings/{settingId} {
+      allow get: if isValidId(settingId) && (existing().enabled == true || isAdmin());
+      allow list: if resource.data.enabled == true;
+      allow create: if isValidId(settingId) && isAdmin() && isValidCommunitySettings(incoming(), settingId);
+      allow update: if isValidId(settingId) && isAdmin() && isValidCommunitySettings(incoming(), settingId)
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'serverName', 'description', 'inviteUrl', 'iconUrl',
+          'supportInviteUrl', 'announcementsInviteUrl', 'showInHeader',
+          'showHomeCard', 'showFooter', 'showFloatingButton', 'enabled', 'updatedAt'
+        ]);
+      allow delete: if isValidId(settingId) && isAdmin();
+    }
+
+    // Metadata sync state & logs (server/admin only)
+    match /metadataSyncJobs/{jobId} {
+      allow get: if isValidId(jobId) && isAdmin();
+      allow list: if isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'mrzorvixofficial@gmail.com';
+      allow write: if false;
+    }
+
+    match /metadataSyncLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'mrzorvixofficial@gmail.com';
+      allow write: if false;
+    }
+
+    // Immutable admin audit logs
+    match /adminAuditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'mrzorvixofficial@gmail.com';
+      allow create: if isValidId(logId) && isAdmin()
+        && incoming().keys().hasAll(['id', 'actorUid', 'action', 'targetPath', 'createdAt'])
+        && incoming().keys().hasOnly(['id', 'actorUid', 'action', 'targetPath', 'createdAt'])
+        && incoming().id == logId
+        && incoming().actorUid == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

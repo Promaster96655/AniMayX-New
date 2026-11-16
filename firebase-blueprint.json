@@ -1,0 +1,286 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public-safe user profile and customization settings for AniMayX.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "username": { "type": "string", "minLength": 3, "maxLength": 30, "pattern": "^[a-z0-9_]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "bannerUrl": { "type": "string", "maxLength": 500 },
+        "frameId": { "type": "string", "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "themeId": { "type": "string", "enum": ["classic-orange", "midnight-black", "crimson-edge", "golden-legend", "anime-collector", "seasonal-frame"] },
+        "bio": { "type": "string", "maxLength": 400 },
+        "favoriteGenres": { "type": "array" },
+        "badges": { "type": "array" },
+        "watchlistVisibility": { "type": "string", "enum": ["public", "private"] },
+        "setupCompleted": { "type": "boolean" },
+        "joinDate": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "displayName", "themeId", "watchlistVisibility", "setupCompleted", "joinDate", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Private PII and personal playback preferences isolated from public profiles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "preferredLanguage": { "type": "string", "maxLength": 16 },
+        "preferredSubtitleLang": { "type": "string", "maxLength": 16 },
+        "skipIntroEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "preferredLanguage", "skipIntroEnabled", "updatedAt"]
+    },
+    "UsernameReservation": {
+      "title": "UsernameReservation",
+      "description": "Atomic username lock preventing duplicate usernames.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "username": { "type": "string", "minLength": 3, "maxLength": 30, "pattern": "^[a-z0-9_]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "createdAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Protected server-provisioned administrator role record.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 254 },
+        "role": { "type": "string", "enum": ["super_admin", "catalog_admin"] },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "grantedAt"]
+    },
+    "AnimeItem": {
+      "title": "AnimeItem",
+      "description": "Normalized anime series metadata with provenance and admin publication controls.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "anilistId": { "type": "number" },
+        "malId": { "type": "number" },
+        "titleEnglish": { "type": "string", "maxLength": 240 },
+        "titleRomaji": { "type": "string", "maxLength": 240 },
+        "titleNative": { "type": "string", "maxLength": 240 },
+        "synopsis": { "type": "string", "maxLength": 4000 },
+        "posterUrl": { "type": "string", "maxLength": 600 },
+        "bannerUrl": { "type": "string", "maxLength": 600 },
+        "genres": { "type": "array" },
+        "season": { "type": "string", "maxLength": 32 },
+        "seasonYear": { "type": "number" },
+        "format": { "type": "string", "maxLength": 32 },
+        "episodeCount": { "type": "number" },
+        "averageScore": { "type": "number" },
+        "popularity": { "type": "number" },
+        "trendingRank": { "type": "number" },
+        "languages": { "type": "array" },
+        "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+        "featured": { "type": "boolean" },
+        "hasAuthorizedPlayback": { "type": "boolean" },
+        "sourceProvider": { "type": "string", "maxLength": 64 },
+        "adminLockedFields": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "titleRomaji", "status", "featured", "hasAuthorizedPlayback", "sourceProvider", "createdAt", "updatedAt"]
+    },
+    "AnimeEpisode": {
+      "title": "AnimeEpisode",
+      "description": "Anime episode metadata and authorized playback source configuration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "animeId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "seasonNumber": { "type": "number" },
+        "episodeNumber": { "type": "number" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "durationSeconds": { "type": "number" },
+        "thumbnailUrl": { "type": "string", "maxLength": 600 },
+        "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+        "playbackSources": { "type": "array" },
+        "subtitles": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "animeId", "seasonNumber", "episodeNumber", "title", "status", "updatedAt"]
+    },
+    "WatchlistEntry": {
+      "title": "WatchlistEntry",
+      "description": "User watchlist item linked to an anime or media entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "mediaId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "category": { "type": "string", "enum": ["anime", "anime_movie", "movie", "series", "manga", "novel", "comic"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "posterUrl": { "type": "string", "maxLength": 600 },
+        "watchStatus": { "type": "string", "enum": ["watching", "planned", "completed", "on_hold", "dropped"] },
+        "isPublic": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "mediaId", "category", "title", "watchStatus", "isPublic", "updatedAt"]
+    },
+    "WatchProgress": {
+      "title": "WatchProgress",
+      "description": "User playback progress per episode for Continue Watching and Resume.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "animeId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "animeTitle": { "type": "string", "maxLength": 240 },
+        "posterUrl": { "type": "string", "maxLength": 600 },
+        "episodeNumber": { "type": "number" },
+        "positionSeconds": { "type": "number" },
+        "durationSeconds": { "type": "number" },
+        "completed": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "animeId", "episodeNumber", "positionSeconds", "durationSeconds", "completed", "updatedAt"]
+    },
+    "ProfileCustomizationAsset": {
+      "title": "ProfileCustomizationAsset",
+      "description": "Curated profile frames or banners managed by admins.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "assetUrl": { "type": "string", "maxLength": 500 },
+        "cssAccent": { "type": "string", "maxLength": 64 },
+        "enabled": { "type": "boolean" }
+      },
+      "required": ["id", "name", "enabled"]
+    },
+    "CommunitySettings": {
+      "title": "CommunitySettings",
+      "description": "Admin-managed Discord community invite configuration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "serverName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 400 },
+        "inviteUrl": { "type": "string", "maxLength": 300 },
+        "iconUrl": { "type": "string", "maxLength": 500 },
+        "supportInviteUrl": { "type": "string", "maxLength": 300 },
+        "announcementsInviteUrl": { "type": "string", "maxLength": 300 },
+        "showInHeader": { "type": "boolean" },
+        "showHomeCard": { "type": "boolean" },
+        "showFooter": { "type": "boolean" },
+        "showFloatingButton": { "type": "boolean" },
+        "enabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "serverName", "enabled", "updatedAt"]
+    },
+    "MetadataSyncJob": {
+      "title": "MetadataSyncJob",
+      "description": "Scheduled and manual metadata sync job status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "provider": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["idle", "running", "completed", "failed"] },
+        "lastSuccessAt": { "type": "string", "format": "date-time" },
+        "nextScheduledAt": { "type": "string", "format": "date-time" },
+        "importedCount": { "type": "number" },
+        "errorMessage": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["id", "provider", "status"]
+    },
+    "MetadataSyncLog": {
+      "title": "MetadataSyncLog",
+      "description": "Execution logs for automatic and manual sync runs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "provider": { "type": "string", "maxLength": 64 },
+        "level": { "type": "string", "enum": ["info", "warn", "error"] },
+        "message": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "provider", "level", "message", "createdAt"]
+    },
+    "AdminAuditLog": {
+      "title": "AdminAuditLog",
+      "description": "Immutable audit log of administrative actions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "actorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 120 },
+        "targetPath": { "type": "string", "maxLength": 240 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorUid", "action", "targetPath", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public-safe user profile documents."
+    },
+    "/users/{userId}/private/info": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated private PII and playback preferences."
+    },
+    "/usernames/{username}": {
+      "schema": { "$ref": "#/entities/UsernameReservation" },
+      "description": "Atomic username reservations."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted server-provisioned admin records."
+    },
+    "/anime/{animeId}": {
+      "schema": { "$ref": "#/entities/AnimeItem" },
+      "description": "Anime series metadata and publication state."
+    },
+    "/animeMovies/{movieId}": {
+      "schema": { "$ref": "#/entities/AnimeItem" },
+      "description": "Dedicated anime movies catalogue."
+    },
+    "/anime/{animeId}/episodes/{episodeId}": {
+      "schema": { "$ref": "#/entities/AnimeEpisode" },
+      "description": "Anime episodes and authorized playback sources."
+    },
+    "/userWatchlists/{entryId}": {
+      "schema": { "$ref": "#/entities/WatchlistEntry" },
+      "description": "User watchlist records."
+    },
+    "/watchProgress/{progressId}": {
+      "schema": { "$ref": "#/entities/WatchProgress" },
+      "description": "User episode playback progress."
+    },
+    "/profileFrames/{frameId}": {
+      "schema": { "$ref": "#/entities/ProfileCustomizationAsset" },
+      "description": "Curated profile frames."
+    },
+    "/profileBanners/{bannerId}": {
+      "schema": { "$ref": "#/entities/ProfileCustomizationAsset" },
+      "description": "Curated profile banners."
+    },
+    "/communitySettings/{settingId}": {
+      "schema": { "$ref": "#/entities/CommunitySettings" },
+      "description": "Discord community integration settings."
+    },
+    "/metadataSyncJobs/{jobId}": {
+      "schema": { "$ref": "#/entities/MetadataSyncJob" },
+      "description": "Scheduled metadata synchronization state."
+    },
+    "/metadataSyncLogs/{logId}": {
+      "schema": { "$ref": "#/entities/MetadataSyncLog" },
+      "description": "Metadata synchronization execution logs."
+    },
+    "/adminAuditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AdminAuditLog" },
+      "description": "Immutable admin action audit trail."
+    }
+  }
+}

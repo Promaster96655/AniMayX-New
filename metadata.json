@@ -1,0 +1,6 @@
+{
+  "name": "AniMayX",
+  "description": "Watch Free Animes — AniMayX is a responsive, animated black-and-orange entertainment platform featuring anime, movies & web series, manga, light novels, and comics with automated metadata synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
